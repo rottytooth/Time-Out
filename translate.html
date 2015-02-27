@@ -1,0 +1,59 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Time Out Program Generator</title>
+    <style type="text/css">
+        html, body
+        {
+            height: 100%;
+            margin: 0px;
+            padding: 20px;            
+            font-family: 'Courier New', Courier, monospace;
+        }
+        #generatedCode
+        {
+            padding-left: 10px;
+        }
+    </style>
+    <link type="text/css" rel="stylesheet" href="TimeOut.css" />
+    <script type="text/javascript" src="jquery-1.11.2.js"></script>
+    <script type="text/javascript" src="TimeOut.js"></script>
+    <script type="text/javascript" src="Display.js"></script>
+    <script type="text/javascript">
+        var timeOut;
+
+        $(document).ready(function () {
+            TimeOut.OFFSET_MIN = 10.0;
+            timeOut = new TimeOut();
+        });
+
+        function generateTimeouts() {
+            var lines = $('#codeBlock').val().split('\n');
+            $('#generatedCode').html('<b>GENERATED CODE:</b><br /><br />');
+            timeOut.translate(lines);
+        }
+
+    </script>
+</head>
+<body>
+    <div id="container">
+        <div id="leftCol">
+            Preset programs: <select id="programLoader" onchange="loadProgram();">
+                <option value="none"></option>
+                <option value="HelloWorld_pseudo">Hello, World!</option>
+                <option value="99Bottles_pseudo">99 Bottles of Beer</option>
+            </select><br />
+            <br />
+            <textarea id="codeBlock" rows="20" cols="50"></textarea>
+            <div style="width: 100%; text-align: center; padding-top: 20px;">
+                <input type="button" value="translate" onclick="generateTimeouts();" />
+                <br /><br /><br /><br />
+                <a href=".">back to TIME OUT interpreter</a>
+            </div>
+        </div>
+        <div id="rightCol">
+            <div id="generatedCode"></div>
+        </div>
+    </div>
+</body>
+</html>

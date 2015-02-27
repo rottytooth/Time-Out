@@ -1,0 +1,90 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Time Out Interpreter</title>
+    <link type="text/css" rel="stylesheet" href="TimeOut.css" />
+    <script type="text/javascript" src="jquery-1.11.2.js"></script>
+    <script type="text/javascript" src="TimeOut.js"></script>
+    <script type="text/javascript" src="Display.js"></script>
+    <script type="text/javascript">
+
+        var timeOut;
+
+        $(document).ready(function () {
+            TimeOut.OFFSET_MIN = 30.0;
+            timeOut = new TimeOut();
+        });
+
+        function execute() {
+            var speed = $('#speed').val();
+            TimeOut.COMMAND_LENGTH = speed;
+
+            var lines = $('#codeBlock').val().split('\n');
+            for (var lineCount = 0; lineCount < lines.length; lineCount++)
+            {
+                var reDigits = /timeOut\.Set\(\d+\);/;
+                var reForv = /timeOut\.Set\(forever\);/;
+
+                if (lines[lineCount].trim() == '') {
+                } else if (lines[lineCount].search(reDigits) > -1 || lines[lineCount].search(reForv) > -1) {
+                    var re = /timeOut\.Set\((.*)\);/;
+                    var found = lines[lineCount].match(re);
+                    eval("timeOut.Set(" + found[1] + ");");
+                }  else {
+                    $('#console').append("<span class=\"bad\">Invalid command on line " + (lineCount + 1).toString() + "</span><br/>");
+                    return;
+                }
+            }
+        }
+
+        function clearAll() {
+            $('#console').html('CONSOLE<br />');
+            $('#output').html('OUTPUT<br />');
+            $('#commandStack').html('COMMAND STACK<br />');
+            $('#dataStack').html('DATA STACK<br />');
+
+            timeOut = new TimeOut();
+        }
+    </script>
+</head>
+<body>
+    <div id="container">
+        <div id="leftCol">
+            <b>TIME OUT INTERPRETER</b>
+            <br /><br /><br />
+            TIME OUT is a language where the action of the program occurs between the lines of code. 
+            The interpreter cycles through every command; the code tells it how long to wait, thereby
+            skipping over those commands we don't want to fire. 
+            If other processes (or a slow browser) cause the "time out" to last too long, 
+            we might miss the command we want and execute a different one. 
+            More about TIME OUT here.
+            <br /><br /><br />
+            Load Program:
+            <select id="programLoader" onchange="loadProgram();">
+                <option value="none"></option>
+                <option value="HelloWorld">Hello, World!</option>
+                <option value="99Bottles">99 Bottles of Beer</option>
+            </select>
+            &nbsp; <input type="button" id="clearButton" value="reset" onclick="clearAll();" />
+            <br />
+            <textarea id="codeBlock" rows="30"></textarea><br />
+            SPEED: <input type="text" id="speed" value="30" style="width: 30px;" maxlength="5" /> milliseconds / command
+            <div style="width: 100%; text-align: center; padding-top: 20px;">
+                <input type="button" id="runButton" value="RUN" onclick="execute();" />
+            </div>
+        </div>
+        <div id="rightCol">
+            <div id="output">OUTPUT<br /></div>
+            <div style="width: 900px">
+                <div id="commandStack" class="stack">COMMAND STACK</div>
+                <div id="dataStack" class="stack">DATA STACK</div>
+            </div>
+            <br style="clear: both" />
+            <div id="console">CONSOLE<br /></div>
+            <br /><br />
+            &nbsp;<a href="Translate.html">Translate pseudo-code to TIME OUT code here</a>
+            <br /><br />
+        </div>
+    </div>
+</body>
+</html>
