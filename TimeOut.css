@@ -8,7 +8,7 @@
 #output
 {
     width: 850px;
-    min-height: 100px;
+    min-height: 180px;
     color: #ffffff;
     background-color: #0094ff;
     font-size: 120%;
@@ -16,16 +16,24 @@
     margin: 10px;
     padding: 10px;
 }
-#console
+.console
 {
-    width: 850px;
     min-height: 100px;
 /*    background: #000000; */
     color: #0094ff;
-    margin: 10px;
+    margin-left: 10px;
     padding: 10px;
     padding-bottom: 15px;
     border: solid 1px #0094ff;
+    width: 420px;
+    float: left;
+}
+.stack
+{
+    width: 420px;
+    overflow-y: scroll;
+    float: left;
+    margin: 10px;
 }
 .bad
 {
@@ -67,15 +75,13 @@
     width: 400px;
     height: 50%;
 }
-.stack
-{
-    width: 420px;
-    height: 200px;
-    overflow-y: scroll;
-    float: left;
-    margin: 10px;
-}
 #runButton
 {
     font-size: 120%;
+}
+.smallDesc
+{
+    font-size: 80%;
+    margin-top: 10px;
+    margin-bottom: 10px;
 }

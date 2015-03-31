@@ -5,51 +5,41 @@ function TimeOut() {
 
     var that = this;
 
-    // internal class Token
-    // holds a TokenType and corresponding value for 
-    function Token(t, v, tt) {
-        this.type = t;
-        this.value = v;
-        this.target = tt
-    }
+    this.handleList = new Array(); // store of all the handles, in order to clear them
 
+    // internal class Token
     function Token(t, v) {
-        this.type = t;
-        this.value = v;
-        this.target = null;
+        this.type = t; // what type is it? there are only two: all expressions are literal values, everything else is a command
+        this.value = v; // if it's a literal, the actual value
     }
 
     Token.TokenType = {
         LITERAL: 0,
-        OPERATOR: 1,
-        COMMAND: 2,
-        IMMEDIATE: 3,
-        PLACEHOLDER: 4,
-        EXPRESSION: 5
+        COMMAND: 1
     };
 
-    Token.Target = {
-        DATA: 0,
-        COMMAND: 1
-    }
-
     // actually instantiated Token to be populated when start and end times are established
-    function SleepNode(index, to) {
+    function SleepNode(index, to) { // to = the TimeOut object
         var that = this;
 
         this.toWait = to.programTimes[index];
 
         this.calledTime = Date.now();
         this.token;
-        this.Index = index;
+        this.index = index;
+        this.executed = false; // the second time we get to the while or if statement, we'll need to know we've been here before
 
         this.CallBack = function () {
             var executedTime = Date.now();
             var passedTime = executedTime - that.calledTime;
             to.currentTime += Math.round(passedTime / TimeOut.COMMAND_LENGTH);
             that.token = to.commandList[to.currentTime % to.commandList.length];
-            to.Execute(that.token, that.toWait, passedTime, to.currentTime);
+            to.Execute(that.token, that.toWait, passedTime, to.currentTime, that.executed);
+            this.executed = true;
+
             clearTimeout(that.Handle);
+
+            // if this is an if or while, we'll need to add to call stack and change up the handles
 
             if (index + 1 < to.programTimes.length)
                 nextNode = new SleepNode(index + 1, to);
@@ -58,11 +48,13 @@ function TimeOut() {
         this.Handle = window.setTimeout(function () {
             that.CallBack();
         }, this.toWait);
+
+        to.handleList.push(this.Handle);
     }
 
     this.programTimes = new Array(); // list of all the loaded times, to be executed
 
-    this.programTokenList; // linked list of sleepnodes
+    this.callStack = new Array(); // for loops, if statements, etc
 
     this.commandList = new Array();
     this.currentCommandIndex = 0;
@@ -86,41 +78,40 @@ function TimeOut() {
         concat(Token.TokenType.LITERAL, chars[a]);
     } // literals
 
+    concat(Token.TokenType.LITERAL, "NEWLINE");
+
     // operators
-    concat(Token.TokenType.OPERATOR, '+');
-    concat(Token.TokenType.OPERATOR, '-');
-    concat(Token.TokenType.OPERATOR, '*');
-    concat(Token.TokenType.OPERATOR, '/');
-    concat(Token.TokenType.OPERATOR, '^');
+    concat(Token.TokenType.COMMAND, '+'); // ADDS first two items
+    concat(Token.TokenType.COMMAND, '-'); // SUBTRACTS second item from first
+    concat(Token.TokenType.COMMAND, '*');
+    concat(Token.TokenType.COMMAND, '/'); // DIVIDES second item from first
+    concat(Token.TokenType.COMMAND, '%');
 
     // stack operations (an be run on either stack)
-    concat(Token.TokenType.COMMAND, "CONCAT", Token.Target.DATA); // concat second into first
+    concat(Token.TokenType.COMMAND, "CONCAT"); // concat second into first
 
-    concat(Token.TokenType.COMMAND, "SWAP", Token.Target.COMMAND); // swap top 2
-    concat(Token.TokenType.COMMAND, "SWAP", Token.Target.DATA); // swap top 2
-    concat(Token.TokenType.COMMAND, "DUP", Token.Target.COMMAND); // copy TOP into NOP
-    concat(Token.TokenType.COMMAND, "DUP", Token.Target.DATA); // copy TOP into NOP
-    concat(Token.TokenType.COMMAND, "ROT3", Token.Target.COMMAND); // rotate top 3
-    concat(Token.TokenType.COMMAND, "ROT3", Token.Target.DATA); // rotate top 3
+    concat(Token.TokenType.COMMAND, "SWAP"); // swap top 2
+    concat(Token.TokenType.COMMAND, "DUP"); // copy TOS into NOS
+    concat(Token.TokenType.COMMAND, "DROP"); // remove TOS
+    concat(Token.TokenType.COMMAND, "ROT3"); // rotate top 3
 
-    concat(Token.TokenType.COMMAND, "PRINT"); // .
-    concat(Token.TokenType.IMMEDIATE, "EXECUTE");
+    concat(Token.TokenType.COMMAND, "PICK"); // get top item (should be a number), copy that numbered item to the top
+    concat(Token.TokenType.COMMAND, "ROLL"); // get top item (should be a number), roll that numbered item to top
 
-    concat(Token.TokenType.COMMAND, "ROTALL", Token.Target.COMMAND); // rotate entire stack
-    concat(Token.TokenType.COMMAND, "ROTALL", Token.Target.DATA); // rotate entire stack
+    concat(Token.TokenType.COMMAND, "DEPTH"); // push the current length of the stack
 
-    concat(Token.TokenType.COMMAND, "IF"); // IF top item on data stack is non-zero
+    concat(Token.TokenType.COMMAND, "EMIT"); // print top item, pops it off the stack
+    concat(Token.TokenType.COMMAND, "READ"); // read input, push onto stack
+
+    concat(Token.TokenType.COMMAND, "IF_NONZERO"); // IF top item on data stack is non-zero
+    concat(Token.TokenType.COMMAND, "IF_LESSER"); // IF top item on data stack is less than second item
     concat(Token.TokenType.COMMAND, "ENDIF");
     concat(Token.TokenType.COMMAND, "ELSE");
 
-    concat(Token.TokenType.EXPRESSION, "STACK1"); // points to top datastack item
-    concat(Token.TokenType.EXPRESSION, "STACK2"); // points to 2nd top datastack item
-    concat(Token.TokenType.EXPRESSION, "STACK3"); // points to 3rd top datastack item
-    concat(Token.TokenType.EXPRESSION, "STACK4"); // points to 4th top datastack item
-
-    concat(Token.TokenType.OPERATOR, '==');
-    concat(Token.TokenType.OPERATOR, '>');
-    concat(Token.TokenType.OPERATOR, '<');
+    concat(Token.TokenType.COMMAND, "WHILE_NONZERO"); // WHILE top item on data stack is non-zero
+    concat(Token.TokenType.COMMAND, "WHILE_LESSER"); // WHILE top item on data stack is less than second item
+    concat(Token.TokenType.COMMAND, "WHILE_GREATER"); // WHILE top item on data stack is more than second item
+    concat(Token.TokenType.COMMAND, "ENDWHILE");
 
     while (this.commandList.length < TimeOut.COMMAND_COUNT)
     {
@@ -144,33 +135,52 @@ function TimeOut() {
 
     that.dataStack = new Array();
 
-    that.commandStack = new Array();
+    that.programList = new Array();
+
+    that.currentQuery = '';
+
+    that.newlines = function (line) {
+        line = line.toString(); // in case it's a number
+        return line.replace("\n", "<BR>");
+    };
 
     this.Execute = function (token, toWait, passedTime, timeIndex) {
         var console = document.getElementById('console');
-        var output = document.getElementById('output');
+//        var output = document.getElementById('output');
 
         var failed = (passedTime - toWait >= TimeOut.COMMAND_LENGTH / 2.0);
 
+        //build string for program monitor
         var addString = "";
-
         if (failed) addString += "<span class=\"bad\">";
 
-        addString += "<br/>tokenType: " + Object.getOwnPropertyNames(Token.TokenType)[token.type] + ", tokenValue: " + token.value +
-            ", toWait: " + toWait + ", passedtime: " + passedTime
-
+        if (Object.getOwnPropertyNames(Token.TokenType)[token.type] == 'LITERAL') {
+            addString += Object.getOwnPropertyNames(Token.TokenType)[token.type] + " | " + token.value;
+        }
+        else {
+            addString += token.value
+        }
+        addString +=  "| toWait: " + toWait + "| passedtime: " + passedTime + "<br/>";
         if (failed) addString += "</span>";
 
-        console.innerHTML += addString;
+        console.innerHTML = addString + console.innerHTML;
 
-        var response = TimeOut.Interpret(token);
+        that.currentQuery += TimeOut.Interpret(token) + '\n';
 
-        if (response == ' ') response = '&nbsp;';
+        if (that.callStack.length == 0) { // if the callStack has nothing in it, we can execute what we have. Otherwise, we build up the query
+            eval(that.currentQuery);
+            that.currentQuery = '';
 
-        if (response != undefined)
-            output.innerHTML += response;
+            // populate our stack
+            $('#dataStack').html('');
+            for (var di = that.dataStack.length - 1; di >= 0; di--) {
+                $('#dataStack').append(that.dataStack[di] + "<br />")
+            }
+        }
     }
 
+    // this translates pseudo-commands (such as "DUP") into Time Out commands in the timeOut.Set() format
+    // used on the translate page
     this.translate = function(program)
     {
         var commandIdx = 0; // index of current command from the big list
@@ -178,26 +188,32 @@ function TimeOut() {
             var commandDiff = 0; // number of steps from last command to current command
             var startingPlace = commandIdx;
 
-            var sourceValue, sourceType, sourceTarget;
+            var sourceValue, sourceType
             var nextTimeFail = false;
             do {
+                commandIdx++; commandDiff++;
+                if (program.length < programIdx && program[programIdx].trim() === "")  // break on blank lines
+                {
+                    programIdx++; // advance to the next line
+                    continue;
+                }
+
                 var sourceParts = (program[programIdx]).split('|');
 
                 sourceType = Object.getOwnPropertyNames(Token.TokenType).indexOf(sourceParts[0]);
                 sourceValue = sourceParts[1];
-                sourceTarget = undefined;
 
-                if (sourceParts.length == 3)
+                if (sourceValue != " " && !isNaN(sourceValue))
                 {
-                    sourceTarget = Object.getOwnPropertyNames(Token.Target).indexOf(sourceParts[2]);
+                    sourceValue = parseInt(sourceValue);
                 }
 
-                if (sourceType == -1)
+                if (sourceType === -1)
                 {
                     $('#console').text("COULD NOT FIND TYPE: " + sourceParts[0]);
+                    return;
                 }
 
-                commandIdx++; commandDiff++;
                 if (nextTimeFail) {
                     $('#console').text("COULD NOT FIND COMMAND: " + sourceValue);
                     return;
@@ -211,11 +227,11 @@ function TimeOut() {
                 if (that.commandList[commandIdx] == undefined)
                 {
                     $('#console').text("BAD COMMAND");
+                    return;
                 }
             } while (
                 sourceType != that.commandList[commandIdx].type ||
-                sourceValue !== that.commandList[commandIdx].value &&
-                (sourceTarget == undefined || sourceTarget == that.commandList[commandIdx].target)
+                sourceValue !== that.commandList[commandIdx].value
             );
 
             $('#generatedCode').append("timeOut.Set(" + commandDiff + ");<br />");
@@ -223,74 +239,176 @@ function TimeOut() {
         $('#generatedCode').append("timeOut.Set(forever);");
     }
 
+    // token = a Token object
     TimeOut.Interpret = function (token)
     {
-        var retVal;
-
         switch(token.type)
         {
             case (Token.TokenType.LITERAL):
-                that.dataStack.push(token.value);
+                if (token.value == "NEWLINE")
+                    return "that.dataStack.push('<br>');";
+
+                if (token.value == " ")
+                    return "that.dataStack.push('&nbsp;');";
+
+                var toAdd = '';
+                if (isNaN(token.value))
+                {
+                    toAdd = "'" + token.value + "'";
+                }
+                else
+                {
+                    toAdd = token.value;
+                }
+                return "that.dataStack.push(" + toAdd + ");"; // add to the stack
                 break;
             case (Token.TokenType.COMMAND):
-                that.commandStack.push(token.value);
-                break;
-            case (Token.TokenType.IMMEDIATE):
-                var command = '';
-                if (token.value == "EXECUTE") {
-                    var command = that.commandStack.pop();
-                }
-                if (token.value == "PRINT" || (token.value == "EXECUTE" && command == "PRINT"))
-                    retVal = that.dataStack.pop();
-                if (token.value == "EXECUTE" && command == "CONCAT") {
-                    var topItem = that.dataStack.pop();
-                    var secondItem = that.dataStack.pop();
-                    topItem += secondItem;
-                    that.dataStack.push(topItem);
-                }
-                if (token.value == "SWAP")
-                {
-                    var stack = that.determineStack(token);
-                    var top = stack.pop();
-                    var sec = stack.pop();
-                    stack.push(top);
-                    stack.push(stack);
-                }
-                if (token.value == "DUP") {
-                    var stack = that.determineStack(token);
-                    var top = stack.pop();
-                    var copy = jQuery.extend({}, top);
-                    stack.push(top);
-                    stack.push(copy);
-                }
-                if (token.value == "ROT3") {
-                    var stack = that.determineStack(token);
-                    var top = stack.pop();
-                    var sec = stack.pop();
-                    var thr = stack.pop();
-                    stack.push(top);
-                    stack.push(thr);
-                    stack.push(sec);
-                }
-                break;
-        }
-        $('#dataStack').html('DATA STACK<br />');
-        for (var di = that.dataStack.length - 1; di >= 0; di--)
-        {
-            $('#dataStack').append(that.dataStack[di] + "<br />")
-        }
-        $('#commandStack').html('COMMAND STACK<br />');
-        for (var ci = that.commandStack.length - 1; ci >= 0; ci--) {
-            $('#commandStack').append(that.commandStack[ci] + "<br />")
-        }
+                that.programList.push(token.value); // show the command in the program list
 
-        return retVal;
+                switch (token.value) {
+                    case ("EMIT"):
+                        return "$('#output').append(that.newlines(that.dataStack.pop()));";
+
+                    case ("CONCAT"):
+                    case ("SWAP"):
+                    case ("DUP"):
+                    case ("ROT3"):
+                    case ("PICK"):
+                    case ("ROLL"):
+                        return "that." + token.value + "();";
+
+                    case ("DROP"):
+                        that.dataStack.pop();
+
+                    case ("DEPTH"):
+                        that.dataStack.push(that.dataStack.length);
+
+                    case ("-"):
+                    case ("*"):
+                    case ("/"):
+                    case ("%"):
+                        return "that.Math('" + token.value + "');"
+
+
+                    case ("IF_NONZERO"):
+                        that.callStack.push(token.value);
+                        return "if(that.dataStack[that.dataStack.length - 1] != 0) {";
+                    case ("IF_LESSER"):
+                        that.callStack.push(token.value);
+                        return "if(that.dataStack[that.dataStack.length - 1] < that.dataStack[that.dataStack.length - 2]) {"
+                    case ("WHILE_NONZERO"):
+                        that.callStack.push(token.value);
+                        return "while(that.dataStack[that.dataStack.length - 1] != 0) {"
+                    case ("WHILE_LESSER"):
+                        that.callStack.push(token.value);
+                        return "while(that.dataStack[that.dataStack.length - 1] < that.dataStack[that.dataStack.length - 2]) {"
+                    case ("WHILE_GREATER"):
+                        that.callStack.push(token.value);
+                        return "while(that.dataStack[that.dataStack.length - 1] > that.dataStack[that.dataStack.length - 2]) {"
+                    case ("ENDWHILE"):
+                        var topOfStack = that.callStack.pop();
+                        if (topOfStack == "WHILE_NONZERO" || topOfStack == "WHILE_LESSER" || topOfStack == "WHILE_GREATER")
+                        {
+                            return "}";
+                        }
+                        else 
+                        {
+                            $('#console').append("ENDWHILE UNEXPECTED");
+                            return;
+                        }
+                    case ("ELSE"):
+                        var topOfStack = that.callStack[that.callStack.length - 1];
+                        if (topOfStack == "IF_NONZERO" || topOfStack == "IF_LESSER") {
+                            return "} else {";
+                        }
+                        else {
+                            $('#console').append("ELSE UNEXPECTED");
+                            return;
+                        }
+                    case ("ENDIF"):
+                        var topOfStack = that.callStack.pop();
+                        if (topOfStack == "IF_NONZERO" || topOfStack == "IF_LESSER") {
+                            return "}";
+                        }
+                        else {
+                            $('#console').append("ENDIF UNEXPECTED");
+                            return;
+                        }
+                }
+                break;
+        }
     }
 
-    that.determineStack = function (token) {
-        return (token.target == Token.Target.DATA ?
-        that.dataStack :
-        that.commandStack);
+    // COMMANDS
+    // these are the commands called by the code passed back from Interpret()
+    that.CONCAT = function()
+    {
+        var topItem = that.dataStack.pop().toString();
+        var secondItem = that.dataStack.pop().toString();
+        topItem += secondItem;
+        that.dataStack.push(topItem);
+    }
+    that.SWAP = function()
+    {
+        var top = that.dataStack.pop();
+        var sec = that.dataStack.pop();
+        that.dataStack.push(top);
+        that.dataStack.push(sec);
+    }
+    that.DUP = function()
+    {
+        var top = that.dataStack.pop();
+        var next = top;
+        that.dataStack.push(top);
+        that.dataStack.push(next);
+    }
+
+    that.ROT3 = function ()
+    {
+        var tos = that.dataStack.pop();
+        var nos = that.dataStack.pop();
+        var thr = that.dataStack.pop();
+        that.dataStack.push(thr);
+        that.dataStack.push(tos);
+        that.dataStack.push(nos);
+    }
+
+    that.ROLL = function () {
+        var idx = that.dataStack.pop();
+        var value = that.dataStack[that.dataStack.length - 1 - idx];
+        that.dataStack.splice(that.dataStack.length - 1 - idx, 1);
+        that.dataStack.push(value);
+    }
+
+    that.PICK = function () {
+        var idx = that.dataStack.pop();
+        var value = that.dataStack[that.dataStack.length - 1 - idx];
+        that.dataStack.push(value);
+    }
+
+
+    that.Math = function(operation)
+    {
+        var tos = that.dataStack.pop();
+        var nos = that.dataStack.pop();
+        switch(operation)
+        {
+            case "+":
+                that.dataStack.push(tos + nos);
+                break;
+            case "-":
+                that.dataStack.push(tos - nos);
+                break;
+            case "*":
+                that.dataStack.push(tos * nos);
+                break;
+            case "/":
+                that.dataStack.push(tos / nos);
+                break;
+            case "^":
+                that.dataStack.push(tos ^ nos);
+                break;
+        }
     }
 };
 

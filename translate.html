@@ -14,6 +14,10 @@
         {
             padding-left: 10px;
         }
+        #console
+        {
+            color: #ff0000;
+        }
     </style>
     <link type="text/css" rel="stylesheet" href="TimeOut.css" />
     <script type="text/javascript" src="jquery-1.11.2.js"></script>
@@ -28,8 +32,9 @@
         });
 
         function generateTimeouts() {
-            var lines = $('#codeBlock').val().split('\n');
+            var lines = $('#codeBlock').val().trim().split('\n');
             $('#generatedCode').html('<b>GENERATED CODE:</b><br /><br />');
+            $('#console').html('');
             timeOut.translate(lines);
         }
 
@@ -38,12 +43,14 @@
 <body>
     <div id="container">
         <div id="leftCol">
+            <b>TIME OUT PROGRAM GENERATOR</b><br /><br />
             Preset programs: <select id="programLoader" onchange="loadProgram();">
                 <option value="none"></option>
                 <option value="HelloWorld_pseudo">Hello, World!</option>
                 <option value="99Bottles_pseudo">99 Bottles of Beer</option>
             </select><br />
             <br />
+            <div id="console"></div>
             <textarea id="codeBlock" rows="20" cols="50"></textarea>
             <div style="width: 100%; text-align: center; padding-top: 20px;">
                 <input type="button" value="translate" onclick="generateTimeouts();" />
